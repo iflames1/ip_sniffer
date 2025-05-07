@@ -2,6 +2,22 @@ use std::{error::Error, io::{self, Write}, net::{IpAddr, TcpStream}, str::FromSt
 
 const MAX_PORT: u16 = 65535;
 
+enum Flag {
+	Help,
+	Threads,
+	None,
+}
+
+impl Flag {
+	fn from_str(s: &str) -> Self {
+		match s {
+			"-h" | "-help" => Flag::Help,
+			"-j" => Flag::Threads,
+			_ => Flag::None,
+		}
+	}
+}
+
 pub struct Arguments {
 	pub ip_addr: IpAddr,
 	pub threads: u16,
@@ -29,16 +45,15 @@ impl Arguments {
 		let flag = first.clone();
 
 		// If first arg is a flag like -h or -j
-		match flag.as_str() {
-			"-h" | "-help" => {
+		match Flag::from_str(&flag) {
+			Flag::Help => {
 				println!("Usage:");
 				println!("  my_app <IP>                        | default 4 threads");
 				println!("  my_app -j <threads> <IP>           | custom thread count");
 				println!("  my_app -h | -help                  | show this help message");
-				Err("help")
+				return Err("help");
 			}
-
-			"-j" => {
+			Flag::Threads => {
 				let threads = match args.next() {
 					Some(t) => match t.parse::<u16>() {
 						Ok(n) => n,
@@ -55,13 +70,12 @@ impl Arguments {
 					None => return Err("Missing IP address"),
 				};
 
-				Ok(Arguments {
+				return Ok(Arguments {
 					ip_addr,
 					threads
 				})
 			}
-
-			_ => Err("Invalid syntax"),
+			Flag::None => Err("Invalid syntax"),
 		}
 	}
 }
