@@ -12,6 +12,11 @@ Scans a given IP address to detect open TCP ports — fast and efficient using t
 
 ## 🚀 Usage
 
+```bash
+git clone https://github.com/iflames1/ip_sniffer.git
+cd ip_sniffer
+```
+
 ### Run with default settings (4 threads):
 
 ```bash
