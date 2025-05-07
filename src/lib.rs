@@ -1,7 +1,8 @@
-use std::{net::IpAddr, str::FromStr};
+use std::{error::Error, io::{self, Write}, net::{IpAddr, TcpStream}, str::FromStr, sync::mpsc::{channel, Sender}, thread};
+
+const MAX_PORT: u16 = 65535;
 
 pub struct Arguments {
-	pub flag: String,
 	pub ip_addr: IpAddr,
 	pub threads: u16,
 }
@@ -20,7 +21,6 @@ impl Arguments {
 
 		if let Ok(ip_addr) = IpAddr::from_str(&first) {
 			return Ok(Arguments {
-				flag: String::new(),
 				ip_addr,
 				threads: 4, // default value
 			});
@@ -56,7 +56,6 @@ impl Arguments {
 				};
 
 				Ok(Arguments {
-					flag,
 					ip_addr,
 					threads
 				})
@@ -65,4 +64,59 @@ impl Arguments {
 			_ => Err("Invalid syntax"),
 		}
 	}
+}
+
+pub fn scan(
+	tx: Sender<u16>,
+	start_port: u16,
+	ip_addr: IpAddr,
+	num_threads: u16,
+) {
+	let mut port = start_port + 1;
+
+	loop {
+		match TcpStream::connect((ip_addr, port)) {
+			Ok(_) => {
+				print!("🟢");
+				io::stdout().flush().unwrap();
+				tx.send(port).unwrap();
+			}
+			Err(_) => {}
+		}
+
+		if (MAX_PORT - port) <= num_threads {
+			break;
+		}
+		port += num_threads;
+	}
+}
+
+pub fn run(
+	arguments: Arguments
+) -> Result<(), Box<dyn Error>>{
+	let num_threads = arguments.threads;
+	let ip_addr = arguments.ip_addr;
+	let (tx, rx) = channel();
+
+	for i in 0..num_threads {
+		let tx = tx.clone();
+
+		thread::spawn(move || {
+			scan(tx, i, ip_addr, num_threads);
+		});
+	}
+
+	let mut out = vec![];
+	drop(tx);
+	for p in rx {
+		out.push(p);
+	}
+
+	println!("");
+	out.sort();
+	for v in out {
+		println!("Port {} is open", v);
+	}
+
+	Ok(())
 }
